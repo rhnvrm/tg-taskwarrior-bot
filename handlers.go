@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"log"
+	"text/template"
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/rhnvrm/tgtask/task"
@@ -25,6 +27,7 @@ var postRegistrationKeyboard = tg.NewReplyKeyboard(
 		tg.NewKeyboardButton("/register"),
 	),
 	tg.NewKeyboardButtonRow(
+		tg.NewKeyboardButton("/new"),
 		tg.NewKeyboardButton("/list"),
 	),
 	tg.NewKeyboardButtonRow(
@@ -39,7 +42,6 @@ func (m *manager) handle(update tg.Update) {
 
 	username := update.Message.From.UserName
 	status := m.task.GetStatus(username)
-	log.Println("current_status", status)
 
 	if status == task.DoesNotExist {
 		status = task.PendingRegistration
@@ -47,7 +49,7 @@ func (m *manager) handle(update tg.Update) {
 	}
 
 	if update.Message.IsCommand() {
-		msg := tg.NewMessage(update.Message.Chat.ID, "Okay")
+		msg := tg.NewMessage(update.Message.Chat.ID, ":+1:")
 
 		switch update.Message.Command() {
 		case "start":
@@ -65,7 +67,29 @@ func (m *manager) handle(update tg.Update) {
 			m.task.SetStatus(username, task.WaitForAPIKey)
 			msg.ReplyMarkup = tg.NewRemoveKeyboard(true)
 		case "list":
-			msg.Text = ""
+			switch status {
+			case task.Registered:
+				t := template.Must(template.New("tmpl").Parse(taskList))
+				tasks := m.api.GetTriggers(m.task.GetAPIKey(username))
+				var txt bytes.Buffer
+				err := t.Execute(&txt, tasks)
+				if err != nil {
+					log.Printf("err: %v", err)
+				}
+				msg.Text = txt.String()
+			default:
+				msg.Text = "You need to /register your api key with me first"
+				msg.ReplyMarkup = preRegistrationKeyboard
+			}
+		case "new":
+			switch status {
+			case task.Registered:
+				msg.Text = "What is the description of the task?"
+				m.task.SetStatus(username, task.WaitForTaskDescription)
+			default:
+				msg.Text = "You need to /register your api key with me first"
+				msg.ReplyMarkup = preRegistrationKeyboard
+			}
 		case "close":
 			msg.ReplyMarkup = tg.NewRemoveKeyboard(true)
 		default:
@@ -83,6 +107,11 @@ func (m *manager) handle(update tg.Update) {
 	case task.WaitForAPIKey:
 		m.task.Register(username, update.Message.Text)
 		msg.Text = "Registered api key."
+		msg.ReplyMarkup = postRegistrationKeyboard
+	case task.WaitForTaskDescription:
+		m.api.NewTrigger(m.task.GetAPIKey(username), update.Message.Text)
+		m.task.SetStatus(username, task.Registered)
+		msg.Text = "Added task."
 		msg.ReplyMarkup = postRegistrationKeyboard
 	}
 

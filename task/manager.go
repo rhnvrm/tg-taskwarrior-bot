@@ -8,10 +8,11 @@ import (
 type Status string
 
 const (
-	DoesNotExist        Status = "does_not_exist"
-	PendingRegistration Status = "pending_registration"
-	WaitForAPIKey       Status = "wait_for_api_key"
-	Registered          Status = "registered"
+	DoesNotExist           Status = "does_not_exist"
+	PendingRegistration    Status = "pending_registration"
+	WaitForAPIKey          Status = "wait_for_api_key"
+	Registered             Status = "registered"
+	WaitForTaskDescription Status = "wait_for_task_desc"
 )
 
 type user struct {
@@ -26,6 +27,10 @@ func (u *user) getStatus() Status {
 
 func (u *user) setStatus(s Status) {
 	u.status = s
+}
+
+func (u *user) getAPIKey() string {
+	return u.apiKey
 }
 
 type Manager struct {
@@ -69,8 +74,6 @@ func (m *Manager) GetStatus(username string) Status {
 		return DoesNotExist
 	}
 
-	log.Printf("user get: %#v", user)
-
 	return user.getStatus()
 }
 
@@ -86,6 +89,18 @@ func (m *Manager) SetStatus(username string, status Status) {
 	}
 
 	user.setStatus(status)
+}
 
-	log.Printf("user set: %#v", user)
+func (m *Manager) GetAPIKey(username string) string {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	user, ok := m.users[username]
+	if !ok {
+		// should not reach here
+		log.Println("err: user not found while updating status")
+		return ""
+	}
+
+	return user.getAPIKey()
 }

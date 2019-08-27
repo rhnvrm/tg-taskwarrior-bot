@@ -6,10 +6,12 @@ import (
 
 	tg "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/rhnvrm/tgtask/task"
+	"github.com/rhnvrm/tgtask/task/intheam"
 )
 
 type manager struct {
 	bot  *tg.BotAPI
+	api  *intheam.API
 	task *task.Manager
 }
 
@@ -28,7 +30,9 @@ func setupBot(token string, debug bool) manager {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	return manager{bot: bot, task: task}
+	api := intheam.New()
+
+	return manager{bot: bot, task: task, api: api}
 }
 
 func (m *manager) drainAndListen() tg.UpdatesChannel {
