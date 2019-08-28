@@ -49,7 +49,7 @@ func (m *manager) handle(update tg.Update) {
 	}
 
 	if update.Message.IsCommand() {
-		msg := tg.NewMessage(update.Message.Chat.ID, ":+1:")
+		msg := tg.NewMessage(update.Message.Chat.ID, "Ok")
 
 		switch update.Message.Command() {
 		case "start":
@@ -77,6 +77,7 @@ func (m *manager) handle(update tg.Update) {
 					log.Printf("err: %v", err)
 				}
 				msg.Text = txt.String()
+				msg.ParseMode = tg.ModeMarkdown
 			default:
 				msg.Text = "You need to /register your api key with me first"
 				msg.ReplyMarkup = preRegistrationKeyboard
